@@ -25,7 +25,7 @@ This project currently aims to control transporter movement in a Roblox environm
 
 2. **Setup Roblox Environment:**
 - Open the Roblox Studio and load your game environment.
-- Ensure transporters are set up with proper properties for collision.
+- Ensure transporters are set up with proper properties.
 
 3. **Configure Backend:**
 - Install required dependencies: `npm install`
