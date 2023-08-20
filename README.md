@@ -1,6 +1,4 @@
-# Roblox TransporterSync Project
-
-![Project Logo](path/to/logo.png) <!-- If you have a project logo, add it here -->
+# Factory-Controller
 
 ## Table of Contents
 - [Project Overview](#project-overview)
@@ -53,7 +51,3 @@ Contributions are welcome! If you'd like to contribute to the project, follow th
 3. Make your changes and commit: `git commit -m "Add feature"`
 4. Push to the branch: `git push origin feature-name`
 5. Submit a pull request.
-
-## License
-
-This project is licensed under the [MIT License](LICENSE.md).
