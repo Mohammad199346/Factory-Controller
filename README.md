@@ -32,6 +32,24 @@ This project currently aims to control transporter movement in a Roblox environm
 - Run the backend server: `npm start`
 - The server will be accessible at http://localhost:3000.
 
+
+## Setting Up Node.js
+
+Before you can run the backend server, you need to have Node.js and npm (Node Package Manager) installed on your system.
+
+1. **Install Node.js:**
+- Download and install Node.js from the official website: https://nodejs.org/
+- Verify the installation by running the following commands in your terminal:
+  ```
+  node -v
+  npm -v
+  ```
+
+2. **Install Dependencies:**
+- Navigate to the project directory in your terminal.
+- Run `npm install` to install the required dependencies listed in `package.json`.
+
+
 ## Usage
 
 1. **Roblox Environment:**
