@@ -11,7 +11,7 @@
 
 ## Project Overview
 
-The Roblox TransporterSync project aims to synchronize transporter movement in a Roblox environment through a backend API. This allows real-time coordination and control of transporters within the game world.
+This project currently aims to control transporter movement in a Roblox environment through a backend API. This allows real-time coordination and control of transporters within the game world.
 
 ## Features
 
