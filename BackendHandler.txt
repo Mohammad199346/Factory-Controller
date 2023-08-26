@@ -1,0 +1,253 @@
+local HttpService = game:GetService("HttpService")
+
+local TweenService = game:GetService("TweenService")
+
+local url = "http://localhost:3000/transporters"
+
+--[[local transporters = {
+	transporter1 = game.Workspace.ConstructionZone.FactoryFloor.Transporter1,
+	transporter2 = game.Workspace.ConstructionZone.FactoryFloor.Transporter2,
+	transporter3 = game.Workspace.ConstructionZone.FactoryFloor.Transporter3,
+	transporter4 = game.Workspace.ConstructionZone.FactoryFloor.Transporter4
+}]]--
+
+local function buildTransportersTable()
+	local transportersTable = {}
+	local factoryFloor = game.Workspace.ConstructionZone.FactoryFloor
+
+	for _, transporter in ipairs(factoryFloor:GetChildren()) do
+		if transporter:IsA("Part") then
+			-- Assuming the transporters are Parts, you can adjust the check based on the actual Instance type used for transporters in your game
+			transportersTable[transporter.Name] = transporter
+		end
+	end
+
+	return transportersTable
+end
+
+local transporters = buildTransportersTable()
+
+local dataModified = false
+
+local function sendDataToBackend()
+	for _, transporter in pairs(transporters) do
+		local position = string.format("%.3f, %.3f, %.3f", transporter.Position.X, transporter.Position.Y, transporter.Position.Z)
+		local transporterData = {
+			name = transporter.Name,
+			location = position
+		}
+		local jsonData = HttpService:JSONEncode(transporterData)
+		local headers = {
+			["Content-Type"] = "application/json"
+		}
+		HttpService:PostAsync(url, jsonData, Enum.HttpContentType.ApplicationJson, false)
+	end
+end
+
+local function createTransporterInGame(transporterData)
+
+	
+	local newTransporter = Instance.new("Part")
+	newTransporter.Name = transporterData.name
+	newTransporter.Size = Vector3.new(6, 2, 4) -- Fixed size for all transporters
+	-- Set the mesh properties
+	local mesh = Instance.new("CylinderMesh")
+	--mesh.MeshType = Enum.MeshType.Brick -- Use Enum.MeshType.Brick for a block-like appearance
+	mesh.Offset = Vector3.new(0,0,0)
+	mesh.Scale = Vector3.new(1, 1, 1) -- Set the scale of the mesh to (1, 1, 1) to match the size of the Part
+
+	-- Parent the mesh to the Part
+	mesh.Parent = newTransporter
+
+	newTransporter.Shape = Enum.PartType.Cylinder -- Set the shape to 'Cylinder'
+	newTransporter.BrickColor = BrickColor.new("Black")--new(transporterData.color) -- Set the color using the BrickColor
+	newTransporter.Parent = game.Workspace.ConstructionZone.FactoryFloor
+	local newTransporterLocation = transporterData.location
+	local x, y, z = newTransporterLocation:match("([^,]+),%s*([^,]+),%s*([^,]+)")
+	if x and y and z then
+		--local currentPosition = transporter.Position
+		--local receivedPosition = Vector3.new(tonumber(x), tonumber(y), tonumber(z))
+		newTransporter.Position = Vector3.new(tonumber(x), tonumber(y), tonumber(z))
+		end
+	
+end
+
+
+--[[local function readDataFromBackend()
+	local response = HttpService:GetAsync(url)
+	local responseData = HttpService:JSONDecode(response)
+
+	if responseData then
+		for _, data in ipairs(responseData) do
+			local transporterName = data.name
+			local transporterLocation = data.location
+
+			for _, transporter in pairs(transporters) do
+				if transporter.Name == transporterName then
+					local x, y, z = transporterLocation:match("([^,]+),%s*([^,]+),%s*([^,]+)")
+					if x and y and z then
+						local currentPosition = transporter.Position
+						local receivedPosition = Vector3.new(tonumber(x), tonumber(y), tonumber(z))
+
+						if currentPosition ~= receivedPosition then
+							
+							local direction = (receivedPosition - currentPosition).Unit
+							local distance = (receivedPosition - currentPosition).Magnitude
+							local stepSize = 1 -- Adjust the step size as needed
+
+							while distance >= stepSize do
+								transporter.Position = transporter.Position + direction * stepSize
+								distance = distance - stepSize
+								wait() -- Adjust the wait duration as needed for smooth movement
+							end
+							
+							transporter.Position = receivedPosition
+							
+							
+							--local tweenInfo = TweenInfo.new(1, Enum.EasingStyle.Linear)
+							--local tween = TweenService:Create(transporter, tweenInfo, {Position = receivedPosition})
+							--tween:Play()
+
+							
+							dataModified = true
+						end
+					end
+				end
+			end
+		end
+		-- Any transporter remaining in the transportersInGame list was deleted from the backend, so remove it from the game.
+		for transporterName in pairs(transporters) do
+			removeTransporterFromGame(transporterName)
+		end
+	else
+		print("Failed to retrieve data from the backend")
+	end
+end]]--
+
+local function readDataFromBackend()
+	local response = HttpService:GetAsync(url)
+	local responseData = HttpService:JSONDecode(response)
+
+	if responseData then
+		local transportersInGame = buildTransportersTable()  -- Update the transporters table
+
+		--local transportersInGame = {}  -- Create a table to keep track of transporters in the game.
+
+		for _, transporter in pairs(transporters) do
+			transportersInGame[transporter.Name] = transporter  -- Store the transporter object in the table.
+		end
+
+		for _, data in ipairs(responseData) do
+			local transporterName = data.name
+			local transporterLocation = data.location
+
+			if transportersInGame[transporterName] then
+				local transporter = transportersInGame[transporterName]
+				transportersInGame[transporterName] = nil  -- Remove the transporter from the list since it exists in the backend response.
+
+				local x, y, z = transporterLocation:match("([^,]+),%s*([^,]+),%s*([^,]+)")
+				if x and y and z then
+					local currentPosition = transporter.Position
+					local receivedPosition = Vector3.new(tonumber(x), tonumber(y), tonumber(z))
+
+					if currentPosition ~= receivedPosition then
+						-- Movement logic...
+						local direction = (receivedPosition - currentPosition).Unit
+						local distance = (receivedPosition - currentPosition).Magnitude
+						local stepSize = 1 -- Adjust the step size as needed
+
+						while distance >= stepSize do
+							transporter.Position = transporter.Position + direction * stepSize
+							distance = distance - stepSize
+							wait() -- Adjust the wait duration as needed for smooth movement
+						end
+
+						transporter.Position = receivedPosition
+
+
+						--local tweenInfo = TweenInfo.new(1, Enum.EasingStyle.Linear)
+						--local tween = TweenService:Create(transporter, tweenInfo, {Position = receivedPosition})
+						--tween:Play()
+
+
+						dataModified = true
+					end
+				end
+			else
+				-- The transporter exists in the backend but not in the game, so create it.
+				print("The transporter exists in the backend but not in the game, so create it")
+				createTransporterInGame(data)
+			end
+		end
+
+		-- Any transporter remaining in the transportersInGame list was deleted from the backend, so remove it from the game.
+		for transporterName, transporter in pairs(transportersInGame) do
+			transporter:Destroy()
+			dataModified = true
+		end
+	else
+		print("Failed to retrieve data from the backend")
+	end
+end
+
+
+--[[local function readDataFromBackend()
+	local response = HttpService:GetAsync(url)
+	local responseData = HttpService:JSONDecode(response)
+
+	if responseData then
+		local transportersInGame = {}
+
+		for _, transporter in pairs(transporters) do
+			transportersInGame[transporter.Name] = transporter
+		end
+
+		for _, data in ipairs(responseData) do
+			local transporterName = data.name
+			local transporterLocation = data.position
+
+			if transportersInGame[transporterName] then
+				transportersInGame[transporterName] = nil
+
+				local x, y, z = transporterLocation:match("([^,]+),%s*([^,]+),%s*([^,]+)")
+				if x and y and z then
+					local currentPosition = transportersInGame[transporterName].Position
+					local receivedPosition = Vector3.new(tonumber(x), tonumber(y), tonumber(z))
+
+					if currentPosition ~= receivedPosition then
+						-- Movement logic...
+					end
+				end
+			else
+				-- The transporter exists in the backend but not in the game, so create it.
+				print("Creating Transporter")
+				createTransporterInGame(data)
+			end
+		end
+
+		for transporterName, transporter in pairs(transportersInGame) do
+			transporter:Destroy()
+			dataModified = true
+		end
+	else
+		print("Failed to retrieve data from the backend")
+	end
+end]]--
+
+local function checkAndSyncData()
+	sendDataToBackend()
+
+	while true do
+		readDataFromBackend()
+
+		if dataModified then
+			sendDataToBackend()
+			dataModified = false
+		end
+
+		wait(10) -- Adjust the interval as needed
+	end
+end
+
+
+checkAndSyncData()
