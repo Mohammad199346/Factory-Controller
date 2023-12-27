@@ -1,0 +1,174 @@
+local HttpService = game:GetService("HttpService")
+
+--local urlGet = "http://localhost:3000/getGameState"
+--local urlUpdate = "http://localhost:3000/updateGameState"
+
+-- Connecting to the Paul server 
+
+--local urlGet = "https://131.188.76.66:3001/getGameState"
+--local urlUpdate = "https://131.188.76.66:3001/updateGameState"
+
+--Connecting to Glitch
+local urlGet = "https://arrow-troubled-clover.glitch.me/getGameState"
+local urlUpdate = "https://arrow-troubled-clover.glitch.me/updateGameState"
+
+
+
+local function buildTransportersTable()
+	local transportersTable = {}
+	local transporterFolder = game.Workspace.Transporters
+
+	for _, transporter in ipairs(transporterFolder:GetChildren()) do
+		if transporter:IsA("Part") then
+			transportersTable[transporter.Name] = transporter
+		end
+	end
+
+	return transportersTable
+end
+
+local function sendWorkspaceDataToBackend()
+	local workspaceData = {}
+	local workspaceFolder = workspace
+
+	for _, item in ipairs(workspaceFolder:GetChildren()) do
+		-- Include all items in the Workspace folder
+		workspaceData[#workspaceData + 1] = item.Name
+	end
+
+	local jsonData = HttpService:JSONEncode(workspaceData)
+	print("Workspace items:", jsonData)
+	local success, errorMessage = pcall(function()
+		--HttpService:PostAsync("http://localhost:3000/Workspace/", jsonData, Enum.HttpContentType.ApplicationJson, false)
+		
+		-- When using Paul
+		--HttpService:PostAsync("https://131.188.76.66:3001/Workspace/", jsonData, Enum.HttpContentType.ApplicationJson, false)
+		
+		-- When using Glitch
+		HttpService:PostAsync("https://arrow-troubled-clover.glitch.me/Workspace/", jsonData, Enum.HttpContentType.ApplicationJson, false)
+	end)
+
+	if not success then
+		warn("Failed to send Workspace data. Error: " .. errorMessage)
+	end
+end
+
+local transporters = buildTransportersTable()
+local dataModified = false
+
+local function sendDataToBackend()
+	local gameState = {}
+	for _, transporter in pairs(transporters) do
+		gameState[transporter.Name] = {
+			position = string.format("x = %.3f,y = %.3f,z = %.3f", transporter.Position.X, transporter.Position.Y, transporter.Position.Z)
+		}
+	end
+
+	local jsonData = HttpService:JSONEncode(gameState)
+
+	print("Game state is:", jsonData)
+
+	local headers = { ["Content-Type"] = "application/json" }
+
+	local success, errorMessage = pcall(function()
+		HttpService:PostAsync(urlUpdate, jsonData, Enum.HttpContentType.ApplicationJson, false)
+	end)
+
+	if success then
+		print("Game state updated successfully.")
+	else
+		warn("Failed to update game state. Error: " .. errorMessage)
+	end
+end
+
+local function readDataFromBackend()
+	local success, response = pcall(function()
+		return HttpService:GetAsync(urlGet)
+	end)
+
+	if success then
+		
+		print("Response from the backend:", response)
+		
+		local gameState = HttpService:JSONDecode(response)
+		if type(gameState) == 'table' then
+
+			print("Game State from the Backend:", gameState)
+
+			local transportersInGame = buildTransportersTable()
+
+			for transporterName, data in pairs(gameState) do
+				local transporter = transportersInGame[transporterName]
+				if transporter then
+
+					print("Data from the backend:", data)
+
+					-- The position string from backend
+					local positionStr = data.position
+					-- Extracting the x, y, z coordinates from the position string
+					local x, y, z = positionStr:match("x%s*=%s*([^,]+),%s*y%s*=%s*([^,]+),%s*z%s*=%s*(.*)")
+					-- Parsing string values to numbers and constructing a Vector3
+					local receivedPosition = Vector3.new(tonumber(x), tonumber(y), tonumber(z))
+
+					transporter.Position = receivedPosition -- Assuming instant position update; use TweenService for smooth transition.
+					transportersInGame[transporterName] = nil -- Existing in backend, remove from temp table.
+				else
+					-- If transporter does not exist in the game but is in the backend, create it or handle accordingly.
+				end
+			end
+
+
+			-- Any transporter left in the transportersInGame means it doesn't exist in the backend anymore.
+			for transporterName, transporter in pairs(transportersInGame) do
+				transporter:Destroy()
+				dataModified = true
+			end
+		else
+			warn("Game state is not in expected format.")
+		end
+	else
+		warn("Failed to retrieve data from the backend: " .. tostring(response))
+	end
+	
+	-- Send data for Transporters (only names, without positions)
+	local transportersData = {}
+	for _, transporter in pairs(transporters) do
+		transportersData[#transportersData + 1] = transporter.Name
+	end
+
+	local jsonTransportersData = HttpService:JSONEncode(transportersData)
+	local success, errorMessage = pcall(function()
+		--HttpService:PostAsync("http://localhost:3000/Workspace/Transporters/", jsonTransportersData, Enum.HttpContentType.ApplicationJson, false)
+		
+		-- When using Paul
+		--HttpService:PostAsync("https://131.188.76.66:3001/Workspace/Transporters/", jsonTransportersData, Enum.HttpContentType.ApplicationJson, false)
+		
+		-- When using Glitch
+		HttpService:PostAsync("https://arrow-troubled-clover.glitch.me/Workspace/Transporters/", jsonTransportersData, Enum.HttpContentType.ApplicationJson, false)
+	end)
+
+	if not success then
+		warn("Failed to send Transporters data. Error: " .. errorMessage)
+	end
+	
+end
+
+local function checkAndSyncData()
+	sendWorkspaceDataToBackend()
+	--sendDataToBackend()
+	readDataFromBackend()
+
+	while true do
+		readDataFromBackend()
+
+		if dataModified then
+			sendDataToBackend()
+			--sendWorkspaceDataToBackend()
+			dataModified = false
+		end
+
+		wait(10) -- Adjust the interval as needed
+	end
+end
+
+checkAndSyncData()
