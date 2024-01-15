@@ -1,23 +1,23 @@
 local HttpService = game:GetService("HttpService")
 
-local TweenService = game:GetService("TweenService")
+-- Connecting to Local host
+--local urlGet = "http://localhost:3000/getGameState"
+--local urlUpdate = "http://localhost:3000/updateGameState"
 
-local url = "http://localhost:3000/transporters"
+-- Connecting to the Paul server 
+--local urlGet = "https://131.188.76.66:3001/getGameState"
+--local urlUpdate = "https://131.188.76.66:3001/updateGameState"
 
---[[local transporters = {
-	transporter1 = game.Workspace.ConstructionZone.FactoryFloor.Transporter1,
-	transporter2 = game.Workspace.ConstructionZone.FactoryFloor.Transporter2,
-	transporter3 = game.Workspace.ConstructionZone.FactoryFloor.Transporter3,
-	transporter4 = game.Workspace.ConstructionZone.FactoryFloor.Transporter4
-}]]--
+--Connecting to Glitch
+local urlGet = "https://arrow-troubled-clover.glitch.me/getGameState"
+local urlUpdate = "https://arrow-troubled-clover.glitch.me/updateGameState"
+local tileUrl = "http://arrow-troubled-clover.glitch.me/getLocation"
 
 local function buildTransportersTable()
 	local transportersTable = {}
-	local factoryFloor = game.Workspace.ConstructionZone.FactoryFloor
-
-	for _, transporter in ipairs(factoryFloor:GetChildren()) do
+	local transporterFolder = game.Workspace.ConstructionZone.FactoryFloor.Transporters
+	for _, transporter in ipairs(transporterFolder:GetChildren()) do
 		if transporter:IsA("Part") then
-			-- Assuming the transporters are Parts, you can adjust the check based on the actual Instance type used for transporters in your game
 			transportersTable[transporter.Name] = transporter
 		end
 	end
@@ -25,229 +25,399 @@ local function buildTransportersTable()
 	return transportersTable
 end
 
+local function buildWorkstationsTable()
+	local workstationsTable = {}
+	local workstationFolder = game.Workspace.ConstructionZone.FactoryFloor.Workstations
+	for _, workstation in ipairs(workstationFolder:GetChildren()) do
+		if workstation:IsA("Part") then
+			workstationsTable[workstation.Name] = workstation
+		end
+	end
+
+	return workstationsTable
+end
+
+local function sendWorkspaceDataToBackend()
+	local workspaceData = {}
+	local constructionZoneData = {}
+	local factoryFloorData = {}
+	
+	local workspaceFolder = workspace
+	local constructionZoneFolder = workspace.ConstructionZone
+	local factoryFloorFolder = workspace.ConstructionZone.FactoryFloor
+
+	for _, item in ipairs(workspaceFolder:GetChildren()) do
+		-- Include all items in the Workspace folder
+		workspaceData[#workspaceData + 1] = item.Name
+	end
+	
+	for _, item in ipairs(constructionZoneFolder:GetChildren()) do
+		-- Include all items in the ConstructionZone folder
+		constructionZoneData[#constructionZoneData + 1] = item.Name
+	end
+	
+	for _, item in ipairs(factoryFloorFolder:GetChildren()) do
+		-- Include all items in the FactoryFloor folder
+		factoryFloorData[#factoryFloorData + 1] = item.Name
+	end
+
+	local jsonData = HttpService:JSONEncode(workspaceData)
+	print("Workspace items:", jsonData)
+	local success, errorMessage = pcall(function()
+		
+		-- When using localhost
+		--HttpService:PostAsync("http://localhost:3000/Workspace/", jsonData, Enum.HttpContentType.ApplicationJson, false)
+
+		-- When using Paul
+		--HttpService:PostAsync("https://131.188.76.66:3001/Workspace/", jsonData, Enum.HttpContentType.ApplicationJson, false)
+
+		-- When using Glitch
+		HttpService:PostAsync("https://arrow-troubled-clover.glitch.me/Workspace/", jsonData, Enum.HttpContentType.ApplicationJson, false)
+	end)
+
+	if not success then
+		warn("Failed to send Workspace data. Error: " .. errorMessage)
+	end
+	
+	local jsonData1 = HttpService:JSONEncode(constructionZoneData)
+	print("Construction zone items:", jsonData1)
+	local success, errorMessage = pcall(function()
+		
+		-- When using localhost
+		--HttpService:PostAsync("http://localhost:3000/Workspace/", jsonData, Enum.HttpContentType.ApplicationJson, false)
+
+		-- When using Paul
+		--HttpService:PostAsync("https://131.188.76.66:3001/Workspace/", jsonData, Enum.HttpContentType.ApplicationJson, false)
+
+		-- When using Glitch
+		HttpService:PostAsync("https://arrow-troubled-clover.glitch.me/Workspace/ConstructionZone", jsonData1, Enum.HttpContentType.ApplicationJson, false)
+	end)
+
+	if not success then
+		warn("Failed to send ConstructionZone data. Error: " .. errorMessage)
+	end
+	
+	local jsonData2 = HttpService:JSONEncode(factoryFloorData)
+	print("FactoryFloor items:", jsonData2)
+	local success, errorMessage = pcall(function()
+		
+		-- When using localhost
+		--HttpService:PostAsync("http://localhost:3000/Workspace/", jsonData, Enum.HttpContentType.ApplicationJson, false)
+
+		-- When using Paul
+		--HttpService:PostAsync("https://131.188.76.66:3001/Workspace/", jsonData, Enum.HttpContentType.ApplicationJson, false)
+
+		-- When using Glitch
+		HttpService:PostAsync("https://arrow-troubled-clover.glitch.me/Workspace/ConstructionZone/FactoryFloor", jsonData2, Enum.HttpContentType.ApplicationJson, false)
+	end)
+
+	if not success then
+		warn("Failed to send FactoryFloor data. Error: " .. errorMessage)
+	end
+end
+
 local transporters = buildTransportersTable()
+local workstations = buildWorkstationsTable()
+local dataModifiedT = false
+local dataModifiedW = false
 
-local dataModified = false
-
-local function sendDataToBackend()
+-- Sending transporter data to the backend
+local function sendTDataToBackend()
+	local gameState = {}
 	for _, transporter in pairs(transporters) do
-		local position = string.format("%.3f, %.3f, %.3f", transporter.Position.X, transporter.Position.Y, transporter.Position.Z)
-		local transporterData = {
-			name = transporter.Name,
-			location = position
+		gameState[transporter.Name] = {
+			position = string.format("x = %.3f,y = %.3f,z = %.3f", transporter.Position.X, transporter.Position.Y, transporter.Position.Z)
 		}
-		local jsonData = HttpService:JSONEncode(transporterData)
-		local headers = {
-			["Content-Type"] = "application/json"
-		}
-		HttpService:PostAsync(url, jsonData, Enum.HttpContentType.ApplicationJson, false)
 	end
-end
 
-local function createTransporterInGame(transporterData)
+	local jsonData = HttpService:JSONEncode(gameState)
 
-	
-	local newTransporter = Instance.new("Part")
-	newTransporter.Name = transporterData.name
-	newTransporter.Size = Vector3.new(6, 2, 4) -- Fixed size for all transporters
-	-- Set the mesh properties
-	local mesh = Instance.new("CylinderMesh")
-	--mesh.MeshType = Enum.MeshType.Brick -- Use Enum.MeshType.Brick for a block-like appearance
-	mesh.Offset = Vector3.new(0,0,0)
-	mesh.Scale = Vector3.new(1, 1, 1) -- Set the scale of the mesh to (1, 1, 1) to match the size of the Part
+	print("Game state is:", jsonData)
 
-	-- Parent the mesh to the Part
-	mesh.Parent = newTransporter
+	local headers = { ["Content-Type"] = "application/json" }
 
-	newTransporter.Shape = Enum.PartType.Cylinder -- Set the shape to 'Cylinder'
-	newTransporter.BrickColor = BrickColor.new("Black")--new(transporterData.color) -- Set the color using the BrickColor
-	newTransporter.Parent = game.Workspace.ConstructionZone.FactoryFloor
-	local newTransporterLocation = transporterData.location
-	local x, y, z = newTransporterLocation:match("([^,]+),%s*([^,]+),%s*([^,]+)")
-	if x and y and z then
-		--local currentPosition = transporter.Position
-		--local receivedPosition = Vector3.new(tonumber(x), tonumber(y), tonumber(z))
-		newTransporter.Position = Vector3.new(tonumber(x), tonumber(y), tonumber(z))
-		end
-	
-end
+	local success, errorMessage = pcall(function()
+		HttpService:PostAsync(urlUpdate, jsonData, Enum.HttpContentType.ApplicationJson, false)
+	end)
 
-
---[[local function readDataFromBackend()
-	local response = HttpService:GetAsync(url)
-	local responseData = HttpService:JSONDecode(response)
-
-	if responseData then
-		for _, data in ipairs(responseData) do
-			local transporterName = data.name
-			local transporterLocation = data.location
-
-			for _, transporter in pairs(transporters) do
-				if transporter.Name == transporterName then
-					local x, y, z = transporterLocation:match("([^,]+),%s*([^,]+),%s*([^,]+)")
-					if x and y and z then
-						local currentPosition = transporter.Position
-						local receivedPosition = Vector3.new(tonumber(x), tonumber(y), tonumber(z))
-
-						if currentPosition ~= receivedPosition then
-							
-							local direction = (receivedPosition - currentPosition).Unit
-							local distance = (receivedPosition - currentPosition).Magnitude
-							local stepSize = 1 -- Adjust the step size as needed
-
-							while distance >= stepSize do
-								transporter.Position = transporter.Position + direction * stepSize
-								distance = distance - stepSize
-								wait() -- Adjust the wait duration as needed for smooth movement
-							end
-							
-							transporter.Position = receivedPosition
-							
-							
-							--local tweenInfo = TweenInfo.new(1, Enum.EasingStyle.Linear)
-							--local tween = TweenService:Create(transporter, tweenInfo, {Position = receivedPosition})
-							--tween:Play()
-
-							
-							dataModified = true
-						end
-					end
-				end
-			end
-		end
-		-- Any transporter remaining in the transportersInGame list was deleted from the backend, so remove it from the game.
-		for transporterName in pairs(transporters) do
-			removeTransporterFromGame(transporterName)
-		end
+	if success then
+		print("Game state updated successfully.")
 	else
-		print("Failed to retrieve data from the backend")
+		warn("Failed to update game state. Error: " .. errorMessage)
 	end
-end]]--
+end
 
-local function readDataFromBackend()
-	local response = HttpService:GetAsync(url)
-	local responseData = HttpService:JSONDecode(response)
+-- Sending workstation data to the backend
+local function sendWDataToBackend()
+	local gameState = {}
+	for _, workstation in pairs(workstations) do
+		gameState[workstation.Name] = {
+			position = string.format("x = %.3f,y = %.3f,z = %.3f", workstation.Position.X, workstation.Position.Y, workstation.Position.Z)
+		}
+	end
 
-	if responseData then
-		local transportersInGame = buildTransportersTable()  -- Update the transporters table
+	local jsonData = HttpService:JSONEncode(gameState)
 
-		--local transportersInGame = {}  -- Create a table to keep track of transporters in the game.
+	print("Game state is:", jsonData)
 
-		for _, transporter in pairs(transporters) do
-			transportersInGame[transporter.Name] = transporter  -- Store the transporter object in the table.
-		end
+	local headers = { ["Content-Type"] = "application/json" }
 
-		for _, data in ipairs(responseData) do
-			local transporterName = data.name
-			local transporterLocation = data.location
+	local success, errorMessage = pcall(function()
+		HttpService:PostAsync(urlUpdate, jsonData, Enum.HttpContentType.ApplicationJson, false)
+	end)
 
-			if transportersInGame[transporterName] then
+	if success then
+		print("Game state updated successfully.")
+	else
+		warn("Failed to update game state. Error: " .. errorMessage)
+	end
+end
+
+-- Reading transporter data from the backen
+local function readTDataFromBackend()
+	local success, response = pcall(function()
+		return HttpService:GetAsync(urlGet)
+	end)
+
+	if success then
+
+		print("Response from the backend:", response)
+
+		local gameState = HttpService:JSONDecode(response)
+		if type(gameState) == 'table' then
+
+			print("Game State from the Backend:", gameState)
+
+			local transportersInGame = buildTransportersTable()
+
+			for transporterName, data in pairs(gameState) do
 				local transporter = transportersInGame[transporterName]
-				transportersInGame[transporterName] = nil  -- Remove the transporter from the list since it exists in the backend response.
+				if transporter then
 
-				local x, y, z = transporterLocation:match("([^,]+),%s*([^,]+),%s*([^,]+)")
-				if x and y and z then
-					local currentPosition = transporter.Position
+					print("Data from the backend:", data)
+
+					-- The position string from backend
+					local positionStr = data.position
+					-- Extracting the x, y, z coordinates from the position string
+					local x, y, z = positionStr:match("x%s*=%s*([^,]+),%s*y%s*=%s*([^,]+),%s*z%s*=%s*(.*)")
+					-- Parsing string values to numbers and constructing a Vector3
 					local receivedPosition = Vector3.new(tonumber(x), tonumber(y), tonumber(z))
 
-					if currentPosition ~= receivedPosition then
-						-- Movement logic...
-						local direction = (receivedPosition - currentPosition).Unit
-						local distance = (receivedPosition - currentPosition).Magnitude
-						local stepSize = 1 -- Adjust the step size as needed
-
-						while distance >= stepSize do
-							transporter.Position = transporter.Position + direction * stepSize
-							distance = distance - stepSize
-							wait() -- Adjust the wait duration as needed for smooth movement
-						end
-
-						transporter.Position = receivedPosition
-
-
-						--local tweenInfo = TweenInfo.new(1, Enum.EasingStyle.Linear)
-						--local tween = TweenService:Create(transporter, tweenInfo, {Position = receivedPosition})
-						--tween:Play()
-
-
-						dataModified = true
-					end
+					transporter.Position = receivedPosition -- Assuming instant position update; use TweenService for smooth transition.
+					transportersInGame[transporterName] = nil -- Existing in backend, remove from temp table.
+				else
+					-- If transporter does not exist in the game but is in the backend, create it or handle accordingly.
 				end
-			else
-				-- The transporter exists in the backend but not in the game, so create it.
-				print("The transporter exists in the backend but not in the game, so create it")
-				createTransporterInGame(data)
 			end
-		end
 
-		-- Any transporter remaining in the transportersInGame list was deleted from the backend, so remove it from the game.
-		for transporterName, transporter in pairs(transportersInGame) do
-			transporter:Destroy()
-			dataModified = true
+
+			-- Any transporter left in the transportersInGame means it doesn't exist in the backend anymore.
+			for transporterName, transporter in pairs(transportersInGame) do
+				transporter:Destroy()
+				dataModifiedT = true
+			end
+		else
+			warn("Game state is not in expected format.")
 		end
 	else
-		print("Failed to retrieve data from the backend")
+		warn("Failed to retrieve data from the backend: " .. tostring(response))
 	end
+
+	-- Send data for Transporters (only names, without positions)
+	local transportersData = {}
+	for _, transporter in pairs(transporters) do
+		transportersData[#transportersData + 1] = transporter.Name
+	end
+
+	local jsonTransportersData = HttpService:JSONEncode(transportersData)
+	local success, errorMessage = pcall(function()
+		--HttpService:PostAsync("http://localhost:3000/Workspace/Transporters/", jsonTransportersData, Enum.HttpContentType.ApplicationJson, false)
+
+		-- When using Paul
+		--HttpService:PostAsync("https://131.188.76.66:3001/Workspace/Transporters/", jsonTransportersData, Enum.HttpContentType.ApplicationJson, false)
+
+		-- When using Glitch
+		HttpService:PostAsync("https://arrow-troubled-clover.glitch.me/Workspace/ConstructionZone/FactoryFloor/Transporters/", jsonTransportersData, Enum.HttpContentType.ApplicationJson, false)
+	end)
+
+	if not success then
+		warn("Failed to send Transporters data. Error: " .. errorMessage)
+	end
+
 end
 
+-- Reading transporter data from the backen
+local function readWDataFromBackend()
+	local success, response = pcall(function()
+		return HttpService:GetAsync(urlGet)
+	end)
 
---[[local function readDataFromBackend()
-	local response = HttpService:GetAsync(url)
-	local responseData = HttpService:JSONDecode(response)
+	if success then
 
-	if responseData then
-		local transportersInGame = {}
+		print("Response from the backend:", response)
 
-		for _, transporter in pairs(transporters) do
-			transportersInGame[transporter.Name] = transporter
-		end
+		local gameState = HttpService:JSONDecode(response)
+		if type(gameState) == 'table' then
 
-		for _, data in ipairs(responseData) do
-			local transporterName = data.name
-			local transporterLocation = data.position
+			print("Game State from the Backend:", gameState)
 
-			if transportersInGame[transporterName] then
-				transportersInGame[transporterName] = nil
+			local workstationsInGame = buildWorkstationsTable()
 
-				local x, y, z = transporterLocation:match("([^,]+),%s*([^,]+),%s*([^,]+)")
-				if x and y and z then
-					local currentPosition = transportersInGame[transporterName].Position
+			for workstationName, data in pairs(gameState) do
+				local workstation = workstationsInGame[workstationName]
+				if workstation then
+
+					print("Data from the backend:", data)
+
+					-- The position string from backend
+					local positionStr = data.position
+					-- Extracting the x, y, z coordinates from the position string
+					local x, y, z = positionStr:match("x%s*=%s*([^,]+),%s*y%s*=%s*([^,]+),%s*z%s*=%s*(.*)")
+					-- Parsing string values to numbers and constructing a Vector3
 					local receivedPosition = Vector3.new(tonumber(x), tonumber(y), tonumber(z))
 
-					if currentPosition ~= receivedPosition then
-						-- Movement logic...
-					end
+					workstation.Position = receivedPosition -- Assuming instant position update; use TweenService for smooth transition.
+					workstationsInGame[workstationName] = nil -- Existing in backend, remove from temp table.
+				else
+					-- If transporter does not exist in the game but is in the backend, create it or handle accordingly.
 				end
-			else
-				-- The transporter exists in the backend but not in the game, so create it.
-				print("Creating Transporter")
-				createTransporterInGame(data)
 			end
-		end
 
-		for transporterName, transporter in pairs(transportersInGame) do
-			transporter:Destroy()
-			dataModified = true
+
+			-- Any workstation left in the workstationsInGame means it doesn't exist in the backend anymore.
+			for workstationName, workstation in pairs(workstationsInGame) do
+				workstation:Destroy()
+				dataModifiedW = true
+			end
+		else
+			warn("Game state is not in expected format.")
 		end
 	else
-		print("Failed to retrieve data from the backend")
+		warn("Failed to retrieve data from the backend: " .. tostring(response))
 	end
-end]]--
+
+	-- Send data for Workstations (only names, without positions)
+	local workstationsData = {}
+	for _, workstation in pairs(workstations) do
+		workstationsData[#workstationsData + 1] = workstation.Name
+	end
+
+	local jsonWorkstationsData = HttpService:JSONEncode(workstationsData)
+	local success, errorMessage = pcall(function()
+		--HttpService:PostAsync("http://localhost:3000/Workspace/Transporters/", jsonTransportersData, Enum.HttpContentType.ApplicationJson, false)
+
+		-- When using Paul
+		--HttpService:PostAsync("https://131.188.76.66:3001/Workspace/Transporters/", jsonTransportersData, Enum.HttpContentType.ApplicationJson, false)
+
+		-- When using Glitch
+		HttpService:PostAsync("https://arrow-troubled-clover.glitch.me/Workspace/ConstructionZone/FactoryFloor/Workstations/", jsonWorkstationsData, Enum.HttpContentType.ApplicationJson, false)
+	end)
+
+	if not success then
+		warn("Failed to send Workstations data. Error: " .. errorMessage)
+	end
+
+end
+
+-- To check if a transporter is present at a given tile
+local function checkTransporterPresence(x, z)
+	for transporterName, transporter in pairs(transporters) do
+		if math.abs(transporter.Position.X - x) < 0.1 and math.abs(transporter.Position.Z - z) < 0.1 then
+			return transporterName
+		end
+	end
+	return "Transporter is not present"
+end
+
+-- To check if a workstation is present at a given tile
+local function checkWorkstationPresence(x, z)
+	for workstationName, workstation in pairs(workstations) do
+		if math.abs(workstation.Position.X - x) < 0.1 and math.abs(workstation.Position.Z - z) < 0.1 then
+			return workstationName
+		end
+	end
+	return "Workstation is not present"
+end
+
+-- Reading tile data
+local function readTileDataFromBackend()
+	
+	--print("Reading tile data")
+	--while true do
+		-- Make a GET request to the backend to retrieve x and z values
+		local success, response = pcall(function()
+			return HttpService:GetAsync(tileUrl)
+		end)
+
+		local xToCheck = nil
+		local zToCheck = nil
+
+		if success then
+			local responseData = HttpService:JSONDecode(response)
+			
+			--print("Response of tile data:", responseData)
+			
+			if responseData and responseData.x and responseData.z then
+				xToCheck = responseData.x
+				zToCheck = responseData.z
+
+				--break
+
+			else
+				warn("Invalid response from the backend")
+			end
+		else
+			warn("Failed to retrieve data from the backend")
+		end
+		
+		--print("Before entering if!!")
+
+		if xToCheck and zToCheck then
+			
+			--print("Now in if of xToCheck!!!")
+			-- Check transporter presence
+			local transporterPresence = checkTransporterPresence(xToCheck, zToCheck)
+			print("Transporter Presence:", transporterPresence)
+
+			-- Check workstation presence
+			local workstationPresence = checkWorkstationPresence(xToCheck, zToCheck)
+			print("Workstation Presence:", workstationPresence)
+		else
+			warn("Invalid or missing x and z values from the backend")
+		end
+		
+		--break
+
+		--wait(10) -- Adjust the interval as needed
+end
 
 local function checkAndSyncData()
-	sendDataToBackend()
+	sendWorkspaceDataToBackend()
+	--sendDataToBackend()
+	readTDataFromBackend()
+	readWDataFromBackend()
+	readTileDataFromBackend()
 
 	while true do
-		readDataFromBackend()
+		
+		
+		readTDataFromBackend()
+		readWDataFromBackend()
+		readTileDataFromBackend()
+		
+		
 
-		if dataModified then
-			sendDataToBackend()
-			dataModified = false
+		if dataModifiedT and dataModifiedW then
+			sendTDataToBackend()
+			sendWDataToBackend()
+			
+			--sendWorkspaceDataToBackend()
+			dataModifiedT = false
+			dataModifiedW = false
 		end
 
 		wait(10) -- Adjust the interval as needed
 	end
 end
-
 
 checkAndSyncData()
