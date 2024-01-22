@@ -11,13 +11,13 @@
 
 ## Project Overview
 
-This project currently aims to control transporter movement in a Roblox environment through a backend API. This allows real-time coordination and control of transporters and workstations within the game world.
+Explore the integration of Roblox game development with a backend, creating a factory simulation. This simulation involves transporters and workstations within a virtual factory. The Roblox code utilizes HttpService to communicate with a backend script deployed on a server. The backend, manages the game state, workspace hierarchy, and updates from the Roblox game. The communication between the Roblox game and the backend is facilitated through RESTful APIs, enabling the synchronization of transporter and workstation data, as well as real-time updates of the game state. Dive into the intricacies of this cross-platform interaction, highlighting the integration of game development with backend scripting for an immersive and dynamic simulation experience.
 
 ## Features
 
 - Seamless synchronization between Roblox environment and backend server.
-- Creation, updating, retrieval, and deletion of transporter positions.
-- Collision detection to prevent transporters from passing through obstacles.
+- Creation, updating, retrieval, and deletion of transporter and workstation positions.
+- Checks and returns information if any object is present on a given location.
 
 ## Getting Started
 
@@ -54,10 +54,10 @@ Before you can run the backend server, you need to have Node.js and npm (Node Pa
 
 1. **Roblox Environment:**
 - Transporters in the Roblox environment will interact with the backend API automatically.
-- Transporters should be set to move with respect to collision detection.
+- Transporters and Workstations should be set to move.
 
 2. **Backend API:**
-- The backend provides routes to create, update, retrieve, and delete transporter positions.
+- The backend provides routes to create, update, retrieve, and delete transporter and workstations positions.
 - Refer to the "Backend API Documentation.docx" for detailed usage.
 
 ## Contributing
