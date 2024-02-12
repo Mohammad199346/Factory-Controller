@@ -1,0 +1,26 @@
+{
+  "Transporter2": {
+    "position": "x = 110,y = 13,z = 150"
+  },
+  "Transporter1": {
+    "position": "x = 110.000,y = 13,z = 100"
+  },
+  "Transporter4": {
+    "position": "x = 140,y = 13,z = 100"
+  },
+  "Transporter3": {
+    "position": "x = 140,y = 13,z = 150"
+  },
+  "Workstation2": {
+    "position": "x = 100,y = 13,z = 150"
+  },
+  "Workstation1": {
+    "position": "x = 100.000,y = 13,z = 110"
+  },
+  "Workstation4": {
+    "position": "x = 150,y = 13,z = 100"
+  },
+  "Workstation3": {
+    "position": "x = 150,y = 13,z = 150"
+  }
+}
