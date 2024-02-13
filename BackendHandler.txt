@@ -1,17 +1,18 @@
 local HttpService = game:GetService("HttpService")
 
 -- Connecting to Local host
---local urlGet = "http://localhost:3000/getGameState"
---local urlUpdate = "http://localhost:3000/updateGameState"
+local urlGet = "http://localhost:3000/getGameState"
+local urlUpdate = "http://localhost:3000/updateGameState"
+local tileUrl = "http://localhost:3000/getLocation"
 
 -- Connecting to the Paul server 
 --local urlGet = "https://131.188.76.66:3001/getGameState"
 --local urlUpdate = "https://131.188.76.66:3001/updateGameState"
 
 --Connecting to Glitch
-local urlGet = "https://arrow-troubled-clover.glitch.me/getGameState"
-local urlUpdate = "https://arrow-troubled-clover.glitch.me/updateGameState"
-local tileUrl = "http://arrow-troubled-clover.glitch.me/getLocation"
+--local urlGet = "https://arrow-troubled-clover.glitch.me/getGameState"
+--local urlUpdate = "https://arrow-troubled-clover.glitch.me/updateGameState"
+--local tileUrl = "http://arrow-troubled-clover.glitch.me/getLocation"
 
 local function buildTransportersTable()
 	local transportersTable = {}
@@ -66,13 +67,13 @@ local function sendWorkspaceDataToBackend()
 	local success, errorMessage = pcall(function()
 		
 		-- When using localhost
-		--HttpService:PostAsync("http://localhost:3000/Workspace/", jsonData, Enum.HttpContentType.ApplicationJson, false)
+		HttpService:PostAsync("http://localhost:3000/Workspace/", jsonData, Enum.HttpContentType.ApplicationJson, false)
 
 		-- When using Paul
 		--HttpService:PostAsync("https://131.188.76.66:3001/Workspace/", jsonData, Enum.HttpContentType.ApplicationJson, false)
 
 		-- When using Glitch
-		HttpService:PostAsync("https://arrow-troubled-clover.glitch.me/Workspace/", jsonData, Enum.HttpContentType.ApplicationJson, false)
+		--HttpService:PostAsync("https://arrow-troubled-clover.glitch.me/Workspace/", jsonData, Enum.HttpContentType.ApplicationJson, false)
 	end)
 
 	if not success then
@@ -84,13 +85,13 @@ local function sendWorkspaceDataToBackend()
 	local success, errorMessage = pcall(function()
 		
 		-- When using localhost
-		--HttpService:PostAsync("http://localhost:3000/Workspace/", jsonData, Enum.HttpContentType.ApplicationJson, false)
+		HttpService:PostAsync("http://localhost:3000/Workspace/ConstructionZone", jsonData1, Enum.HttpContentType.ApplicationJson, false)
 
 		-- When using Paul
 		--HttpService:PostAsync("https://131.188.76.66:3001/Workspace/", jsonData, Enum.HttpContentType.ApplicationJson, false)
 
 		-- When using Glitch
-		HttpService:PostAsync("https://arrow-troubled-clover.glitch.me/Workspace/ConstructionZone", jsonData1, Enum.HttpContentType.ApplicationJson, false)
+		--HttpService:PostAsync("https://arrow-troubled-clover.glitch.me/Workspace/ConstructionZone", jsonData1, Enum.HttpContentType.ApplicationJson, false)
 	end)
 
 	if not success then
@@ -102,13 +103,13 @@ local function sendWorkspaceDataToBackend()
 	local success, errorMessage = pcall(function()
 		
 		-- When using localhost
-		--HttpService:PostAsync("http://localhost:3000/Workspace/", jsonData, Enum.HttpContentType.ApplicationJson, false)
+		HttpService:PostAsync("http://localhost:3000/Workspace/ConstructionZone/FactoryFloor", jsonData2, Enum.HttpContentType.ApplicationJson, false)
 
 		-- When using Paul
 		--HttpService:PostAsync("https://131.188.76.66:3001/Workspace/", jsonData, Enum.HttpContentType.ApplicationJson, false)
 
 		-- When using Glitch
-		HttpService:PostAsync("https://arrow-troubled-clover.glitch.me/Workspace/ConstructionZone/FactoryFloor", jsonData2, Enum.HttpContentType.ApplicationJson, false)
+		--HttpService:PostAsync("https://arrow-troubled-clover.glitch.me/Workspace/ConstructionZone/FactoryFloor", jsonData2, Enum.HttpContentType.ApplicationJson, false)
 	end)
 
 	if not success then
@@ -173,7 +174,7 @@ local function sendWDataToBackend()
 	end
 end
 
--- Reading transporter data from the backen
+-- Reading transporters data from the backend
 local function readTDataFromBackend()
 	local success, response = pcall(function()
 		return HttpService:GetAsync(urlGet)
@@ -206,15 +207,35 @@ local function readTDataFromBackend()
 					transporter.Position = receivedPosition -- Assuming instant position update; use TweenService for smooth transition.
 					transportersInGame[transporterName] = nil -- Existing in backend, remove from temp table.
 				else
-					-- If transporter does not exist in the game but is in the backend, create it or handle accordingly.
+					-- Check if the entry is for a transporter
+					if string.match(transporterName, "^Transporter") then
+						-- If transporter does not exist in the game but is in the backend, create it or handle accordingly.
+						local newTransporter = Instance.new("Part")
+						newTransporter.Name = transporterName
+						-- Set other properties as needed
+						newTransporter.Size = Vector3.new(3.605, 0.901, 1.802) -- Example size, adjust as needed
+						newTransporter.Anchored = true -- Example anchored state, adjust as needed
+						newTransporter.BrickColor = BrickColor.new("Bright blue") -- Example color, adjust as needed
+						newTransporter.CanCollide = true -- Example collision setting, adjust as needed
+						newTransporter.Parent = workspace.ConstructionZone.FactoryFloor.Transporters
+
+						-- Create and set position
+						local positionStr = data.position
+						local x, y, z = positionStr:match("x%s*=%s*([^,]+),%s*y%s*=%s*([^,]+),%s*z%s*=%s*(.*)")
+						local position = Vector3.new(tonumber(x), tonumber(y), tonumber(z))
+						newTransporter.Position = position
+					end
 				end
+					
+				
+				
 			end
 
 
 			-- Any transporter left in the transportersInGame means it doesn't exist in the backend anymore.
 			for transporterName, transporter in pairs(transportersInGame) do
 				transporter:Destroy()
-				dataModifiedT = true
+				--dataModifiedT = true
 			end
 		else
 			warn("Game state is not in expected format.")
@@ -231,22 +252,24 @@ local function readTDataFromBackend()
 
 	local jsonTransportersData = HttpService:JSONEncode(transportersData)
 	local success, errorMessage = pcall(function()
-		--HttpService:PostAsync("http://localhost:3000/Workspace/Transporters/", jsonTransportersData, Enum.HttpContentType.ApplicationJson, false)
+		
+	--	When using local host
+	HttpService:PostAsync("http://localhost:3000/Workspace/ConstructionZone/FactoryFloor/Transporters/", jsonTransportersData, Enum.HttpContentType.ApplicationJson, false)
 
-		-- When using Paul
-		--HttpService:PostAsync("https://131.188.76.66:3001/Workspace/Transporters/", jsonTransportersData, Enum.HttpContentType.ApplicationJson, false)
+	--	-- When using Paul
+	--	--HttpService:PostAsync("https://131.188.76.66:3001/Workspace/Transporters/", jsonTransportersData, Enum.HttpContentType.ApplicationJson, false)
 
-		-- When using Glitch
-		HttpService:PostAsync("https://arrow-troubled-clover.glitch.me/Workspace/ConstructionZone/FactoryFloor/Transporters/", jsonTransportersData, Enum.HttpContentType.ApplicationJson, false)
+	--	-- When using Glitch
+	--	--HttpService:PostAsync("https://arrow-troubled-clover.glitch.me/Workspace/ConstructionZone/FactoryFloor/Transporters/", jsonTransportersData, Enum.HttpContentType.ApplicationJson, false)
 	end)
 
 	if not success then
-		warn("Failed to send Transporters data. Error: " .. errorMessage)
+	warn("Failed to send Transporters data. Error: " .. errorMessage)
 	end
 
 end
 
--- Reading transporter data from the backen
+-- Reading workstations data from the backend
 local function readWDataFromBackend()
 	local success, response = pcall(function()
 		return HttpService:GetAsync(urlGet)
@@ -279,7 +302,27 @@ local function readWDataFromBackend()
 					workstation.Position = receivedPosition -- Assuming instant position update; use TweenService for smooth transition.
 					workstationsInGame[workstationName] = nil -- Existing in backend, remove from temp table.
 				else
-					-- If transporter does not exist in the game but is in the backend, create it or handle accordingly.
+					-- Check if the entry is for a workstation
+					if string.match(workstationName, "^Workstation") then
+						-- If transporter does not exist in the game but is in the backend, create it or handle accordingly.
+						local newWorkstation = Instance.new("Part")
+						newWorkstation.Name = workstationName
+						newWorkstation.Shape = "Cylinder"
+						newWorkstation.Material = "SmoothPlastic"
+						-- Set other properties as needed
+						newWorkstation.Size = Vector3.new(1.802, 5.407, 3.605) -- Example size, adjust as needed
+						newWorkstation.Orientation = Vector3.new(0,0,90)
+						newWorkstation.Anchored = true -- Example anchored state, adjust as needed
+						newWorkstation.BrickColor = BrickColor.new("Lime green") -- Example color, adjust as needed
+						newWorkstation.CanCollide = true -- Example collision setting, adjust as needed
+						newWorkstation.Parent = workspace.ConstructionZone.FactoryFloor.Workstations
+
+						-- Create and set position
+						local positionStr = data.position
+						local x, y, z = positionStr:match("x%s*=%s*([^,]+),%s*y%s*=%s*([^,]+),%s*z%s*=%s*(.*)")
+						local position = Vector3.new(tonumber(x), tonumber(y), tonumber(z))
+						newWorkstation.Position = position
+					end
 				end
 			end
 
@@ -287,7 +330,7 @@ local function readWDataFromBackend()
 			-- Any workstation left in the workstationsInGame means it doesn't exist in the backend anymore.
 			for workstationName, workstation in pairs(workstationsInGame) do
 				workstation:Destroy()
-				dataModifiedW = true
+				--dataModifiedW = true
 			end
 		else
 			warn("Game state is not in expected format.")
@@ -296,7 +339,7 @@ local function readWDataFromBackend()
 		warn("Failed to retrieve data from the backend: " .. tostring(response))
 	end
 
-	-- Send data for Workstations (only names, without positions)
+	--Send data for Workstations (only names, without positions)
 	local workstationsData = {}
 	for _, workstation in pairs(workstations) do
 		workstationsData[#workstationsData + 1] = workstation.Name
@@ -304,17 +347,19 @@ local function readWDataFromBackend()
 
 	local jsonWorkstationsData = HttpService:JSONEncode(workstationsData)
 	local success, errorMessage = pcall(function()
-		--HttpService:PostAsync("http://localhost:3000/Workspace/Transporters/", jsonTransportersData, Enum.HttpContentType.ApplicationJson, false)
+		
+	-- When using local host
+	HttpService:PostAsync("http://localhost:3000/Workspace/ConstructionZone/FactoryFloor/Workstations/", jsonWorkstationsData, Enum.HttpContentType.ApplicationJson, false)
 
-		-- When using Paul
-		--HttpService:PostAsync("https://131.188.76.66:3001/Workspace/Transporters/", jsonTransportersData, Enum.HttpContentType.ApplicationJson, false)
+	----	-- When using Paul
+	----	--HttpService:PostAsync("https://131.188.76.66:3001/Workspace/Transporters/", jsonTransportersData, Enum.HttpContentType.ApplicationJson, false)
 
-		-- When using Glitch
-		HttpService:PostAsync("https://arrow-troubled-clover.glitch.me/Workspace/ConstructionZone/FactoryFloor/Workstations/", jsonWorkstationsData, Enum.HttpContentType.ApplicationJson, false)
+	----	-- When using Glitch
+	----	--HttpService:PostAsync("https://arrow-troubled-clover.glitch.me/Workspace/ConstructionZone/FactoryFloor/Workstations/", jsonWorkstationsData, Enum.HttpContentType.ApplicationJson, false)
 	end)
 
 	if not success then
-		warn("Failed to send Workstations data. Error: " .. errorMessage)
+	warn("Failed to send Workstations data. Error: " .. errorMessage)
 	end
 
 end
@@ -405,16 +450,18 @@ local function checkAndSyncData()
 		readWDataFromBackend()
 		readTileDataFromBackend()
 		
+		--if dataModifiedT then
+			--sendTDataToBackend()
+			--dataModifiedT = false
 		
-
-		if dataModifiedT and dataModifiedW then
-			sendTDataToBackend()
-			sendWDataToBackend()
+			
+		--elseif dataModifiedW then
+			--sendWDataToBackend()
+			--dataModifiedW = false
+		--end
 			
 			--sendWorkspaceDataToBackend()
-			dataModifiedT = false
-			dataModifiedW = false
-		end
+			
 
 		wait(10) -- Adjust the interval as needed
 	end
